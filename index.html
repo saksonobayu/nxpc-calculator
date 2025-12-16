@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cute Nexpace Converter</title>
-    <link rel="icon" href="pinkbean.png" type="image/png">
+    <!-- You can replace this icon with your own -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍄</text></svg>">
     <style>
         /* --- Cute Styling (CSS) --- */
         @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap');
@@ -46,10 +47,17 @@
         .nxpc-logo {
             width: 80px;
             height: 80px;
+            /* Placeholder styling if image is missing */
+            background-color: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            
             filter: drop-shadow(0 4px 6px rgba(131, 56, 236, 0.3));
             animation: float 3s ease-in-out infinite;
             object-fit: contain;
-            display: block;
             margin: 0 auto;
         }
 
@@ -147,35 +155,58 @@
             transform: scale(0.95);
         }
 
+        /* --- Result Boxes --- */
         .result-box {
             background-color: #e0f7fa;
-            padding: 25px;
+            padding: 20px;
             border-radius: 25px;
             border: 2px dashed #48cae4;
             position: relative;
+            margin-bottom: 15px; /* Space between boxes */
+        }
+
+        /* Neso Specific Style (Pinkish) */
+        .result-box.neso-style {
+            background-color: #ffe5ec;
+            border-color: #ffcad4;
         }
 
         .result-label {
-            font-size: 0.9em;
+            font-size: 0.85em;
             color: #0096c7;
             margin: 0;
             text-transform: uppercase;
             letter-spacing: 1px;
             font-weight: 700;
         }
+        
+        /* Adjust label color for Neso box */
+        .neso-style .result-label {
+            color: #d63384;
+        }
 
         .result-value {
-            font-size: 2.5em;
+            font-size: 2.2em;
             color: #0077b6;
             font-weight: 800;
-            margin: 10px 0;
+            margin: 5px 0;
             word-break: break-all;
-            line-height: 1;
+            line-height: 1.1;
+        }
+
+        /* Adjust value color for Neso box */
+        .neso-style .result-value {
+            color: #c9184a;
         }
 
         .token-name {
             color: #0077b6;
             font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .neso-style .token-name {
+            color: #a4133c;
         }
 
         .error-msg {
@@ -191,9 +222,10 @@
 
     <div class="calculator-container">
         
-        <!-- CHANGE THIS PART: Put your logo image here -->
+        <!-- Logo -->
         <div class="logo-container">
-            <img class="nxpc-logo" src="nxpc_logo.png" alt="NXPC Logo">
+            <!-- Ensure nxpc_logo.png is in the same folder, or it will show the alt text -->
+            <img class="nxpc-logo" src="nxpc_logo.png" alt="✨" onerror="this.style.display='none'">
         </div>
 
         <h1>NXPC Converter</h1>
@@ -220,20 +252,52 @@
         
         <button id="convertButton">✨ Convert ✨</button>
 
+        <!-- Result 1: NXPC -->
         <div class="result-box">
             <p class="result-label">You Will Receive</p>
             <div id="nxpcResult" class="result-value">0.00</div>
             <span class="token-name">NXPC Tokens</span>
         </div>
+
+        <!-- Result 2: Neso (Added as requested) -->
+        <div class="result-box neso-style">
+            <p class="result-label">Equivalent Neso</p>
+            <div id="nesoResult" class="result-value">0</div>
+            <span class="token-name">Neso</span>
+        </div>
+
     </div>
 
     <script>
         // --- JavaScript Logic ---
 
+        function formatNesoWithSuffix(num) {
+            // Logic: 100k, 1m, 10m, 1b
+            if (num === 0) return "0";
+
+            // If billion or more (e.g., 1,000,000,000+)
+            if (num >= 1000000000) {
+                // toFixed(2) keeps 2 decimals, parseFloat removes trailing zeros (e.g., 1.50 -> 1.5)
+                return parseFloat((num / 1000000000).toFixed(2)) + 'b';
+            }
+            // If million or more (e.g., 1,000,000+)
+            if (num >= 1000000) {
+                return parseFloat((num / 1000000).toFixed(2)) + 'm';
+            }
+            // If thousand or more (e.g., 1,000+)
+            if (num >= 1000) {
+                return parseFloat((num / 1000).toFixed(2)) + 'k';
+            }
+            
+            // Smaller numbers
+            return num.toLocaleString();
+        }
+
         function performConversion() {
             const usdInput = document.getElementById('usdAmount');
             const priceInput = document.getElementById('nxpcPrice');
             const resultDisplay = document.getElementById('nxpcResult');
+            const nesoDisplay = document.getElementById('nesoResult');
             const errorMsg = document.getElementById('errorMsg');
             
             const usdAmount = parseFloat(usdInput.value);
@@ -244,8 +308,10 @@
                 if(usdInput.value !== "") {
                     errorMsg.style.display = 'block';
                     resultDisplay.innerText = "---";
+                    nesoDisplay.innerText = "---";
                 } else {
                     resultDisplay.innerText = "0.00";
+                    nesoDisplay.innerText = "0";
                     errorMsg.style.display = 'none';
                 }
                 return;
@@ -259,14 +325,21 @@
             // Hide error message
             errorMsg.style.display = 'none';
 
-            // Math: Amount / Price = Tokens
+            // 1. Calculate NXPC (Amount / Price)
             const tokenAmount = usdAmount / tokenPrice;
 
-            // Formatting: Show up to 4 decimal places
-            // If it's a whole number, don't show decimals, otherwise max 4
+            // 2. Calculate Neso (NXPC * 100,000)
+            const nesoAmount = tokenAmount * 100000;
+
+            // Formatting NXPC: Show up to 4 decimal places
             const formattedResult = parseFloat(tokenAmount.toFixed(4));
             
+            // Formatting Neso: Use k, m, b
+            const formattedNeso = formatNesoWithSuffix(nesoAmount);
+
+            // Update DOM
             resultDisplay.innerText = formattedResult;
+            nesoDisplay.innerText = formattedNeso;
         }
 
         // Add Event Listeners
@@ -275,5 +348,4 @@
         document.getElementById('nxpcPrice').addEventListener('input', performConversion);
     </script>
 </body>
-
 </html>
